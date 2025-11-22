@@ -1,0 +1,83 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>World Saves Dashboard</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #0b1020; color: #e6eef8; padding: 20px }
+    .card { background: #0f1724; border: 1px solid rgba(255,255,255,0.04); padding: 16px; border-radius: 8px; max-width: 800px; margin: 0 auto }
+    input, button, select { font-size: 14px; padding: 8px; margin: 6px 4px }
+    .list { margin-top: 12px }
+    .row { display:flex; gap:8px; align-items:center }
+    .btn-danger { background:#b04242; color:white; border:none }
+    .btn-primary { background:#2b8cff; color:white; border:none }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2>World Saves Dashboard</h2>
+    <div>
+      <label for="saveName">Save name:</label>
+      <input id="saveName" placeholder="default">
+      <button id="saveBtn" class="btn-primary">Save</button>
+      <button id="loadBtn" class="btn-primary">Load</button>
+      <button id="refreshBtn">Refresh list</button>
+    </div>
+
+    <div class="list">
+      <h3>Available saves</h3>
+      <div id="savesContainer">Loading...</div>
+    </div>
+
+    <div style="margin-top:12px">
+      <a href="/">Back to World</a>
+    </div>
+  </div>
+
+<script>
+async function listSaves(){
+  const resp = await fetch('/api/list_saves');
+  const jd = await resp.json();
+  const container = document.getElementById('savesContainer');
+  container.innerHTML = '';
+  (jd.saves||[]).forEach(name=>{
+    const row = document.createElement('div'); row.className='row';
+    const label = document.createElement('div'); label.textContent = name; label.style.flex='1';
+    const load = document.createElement('button'); load.textContent='Load'; load.onclick = async ()=>{ await apiLoad(name); };
+    const dl = document.createElement('a'); dl.textContent='Open'; dl.href='/dashboard?open='+encodeURIComponent(name);
+    const rem = document.createElement('button'); rem.textContent='Delete'; rem.className='btn-danger'; rem.onclick = async ()=>{ await deleteSave(name); };
+    row.appendChild(label); row.appendChild(load); row.appendChild(rem);
+    container.appendChild(row);
+  });
+}
+
+async function apiSave(name){
+  const resp = await fetch('/api/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name})});
+  const jd = await resp.json();
+  if(jd.success) alert('Saved: '+jd.name);
+  else alert('Save failed');
+  await listSaves();
+}
+async function apiLoad(name){
+  const resp = await fetch('/api/load',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name})});
+  const jd = await resp.json();
+  if(jd.success) alert('Loaded: '+jd.name);
+  else alert('Load failed: '+(jd.message||'unknown'));
+}
+async function deleteSave(name){
+  if(!confirm('Delete save '+name+'?')) return;
+  const resp = await fetch('/api/delete_save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name})});
+  const jd = await resp.json();
+  if(jd.success) alert('Deleted');
+  else alert('Delete failed');
+  await listSaves();
+}
+
+document.getElementById('saveBtn').addEventListener('click', ()=>{ const n=document.getElementById('saveName').value||'default'; apiSave(n); });
+document.getElementById('loadBtn').addEventListener('click', ()=>{ const n=document.getElementById('saveName').value||'default'; apiLoad(n); });
+document.getElementById('refreshBtn').addEventListener('click', ()=>listSaves());
+
+listSaves();
+</script>
+</body>
+</html>
